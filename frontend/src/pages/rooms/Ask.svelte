@@ -3,6 +3,10 @@
 
   import { Button } from "$lib/components/ui/button";
 
+  import {
+    draft,
+    clearDraft,
+  } from "@/common/stores/draft.svelte";
   import RoomSectionDescription from "@/pages/rooms/components/RoomSectionDescription.svelte";
 
   let { params: routeParameters }: { params: Record<string, string> } = $props();
@@ -11,7 +15,17 @@
 
   let questionContent: string = $state("");
 
+  // Lock the local input while the generation is in progress. The ask request
+  // goes through the response envelope once the contract stub endpoint is ready.
+  function submitQuestion(): void {
+    draft.inputLocked = true;
+    draft.generationActive = true;
+  }
+
+  // An interrupt clears the pending draft immediately and returns to the board.
   function interruptGeneration(): void {
+    clearDraft();
+    draft.inputLocked = false;
     push(`/rooms/${roomIdentifier}`);
   }
 </script>
@@ -29,6 +43,7 @@
         rows={4}
         bind:value={questionContent}
         placeholder="输入问题"
+        disabled={draft.inputLocked}
         class={[
           "min-h-24", "w-full", "rounded-lg", "border", "border-input",
           "bg-background", "px-3", "py-2", "text-sm", "outline-none",
@@ -37,7 +52,7 @@
       ></textarea>
     </div>
 
-    <Button size="lg">发送提问</Button>
+    <Button size="lg" onclick={submitQuestion}>发送提问</Button>
 
     <Button variant="destructive" onclick={interruptGeneration}>
       打断

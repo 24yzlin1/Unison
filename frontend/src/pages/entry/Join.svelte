@@ -1,8 +1,25 @@
 <script lang="ts">
+  import { push } from "svelte-spa-router";
+
   import { Button } from "$lib/components/ui/button";
+
+  import {
+    identity,
+    persistIdentity,
+  } from "@/common/stores/identity.svelte";
 
   let roomIdentifier: string = $state("");
   let displayName: string = $state("");
+
+  // Enter the room with the identifier typed in or scanned. The join request
+  // goes through the response envelope once the contract stub endpoint is
+  // ready; until then navigation is local and only the data source changes.
+  function joinRoom(): void {
+    identity.displayName = displayName;
+    identity.roomIdentifier = roomIdentifier;
+    persistIdentity();
+    push(`/rooms/${roomIdentifier}`);
+  }
 </script>
 
 <div class={["flex", "flex-col", "gap-4", "px-6", "py-8"]}>
@@ -40,5 +57,5 @@
     />
   </div>
 
-  <Button size="lg">加入房间</Button>
+  <Button size="lg" onclick={joinRoom}>加入房间</Button>
 </div>

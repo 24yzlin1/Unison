@@ -1,7 +1,29 @@
 <script lang="ts">
+  import { push } from "svelte-spa-router";
+
   import { Button } from "$lib/components/ui/button";
 
+  import {
+    identity,
+    persistIdentity,
+  } from "@/common/stores/identity.svelte";
+
   let displayName: string = $state("");
+
+  // Enter the room and remember the identity. The create request goes through
+  // the response envelope once the contract stub endpoint is ready; until then
+  // the identifier is generated locally and only the data source changes later.
+  function enterRoom(roomIdentifier: string): void {
+    identity.displayName = displayName;
+    identity.roomIdentifier = roomIdentifier;
+    persistIdentity();
+    push(`/rooms/${roomIdentifier}`);
+  }
+
+  function createRoom(): void {
+    const generatedRoomIdentifier = `local-${crypto.randomUUID().slice(0, 8)}`;
+    enterRoom(generatedRoomIdentifier);
+  }
 </script>
 
 <div class={["flex", "flex-col", "gap-4", "px-6", "py-8"]}>
@@ -22,5 +44,5 @@
     />
   </div>
 
-  <Button size="lg">创建房间</Button>
+  <Button size="lg" onclick={createRoom}>创建房间</Button>
 </div>
