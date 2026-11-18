@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { push } from "svelte-spa-router";
+
   import * as Avatar from "$lib/components/ui/avatar";
   import { Badge } from "$lib/components/ui/badge";
   import { Button } from "$lib/components/ui/button";
@@ -95,10 +97,12 @@
       <Badge variant="secondary">{badgeLabel}</Badge>
     {/each}
   </div>
-  <Button class={["w-[50%]"]} size="lg">
-    立即进房
-    <RiArrowRightLine />
-  </Button>
+  <div class={["flex", "w-full", "justify-center"]}>
+    <Button class={["w-[40%]"]} size="lg" onclick={() => push("/entry")}>
+      立即进房
+      <RiArrowRightLine />
+    </Button>
+  </div>
 </div>
 
 <div class={["flex", "flex-col", "gap-2", "py-8"]}>

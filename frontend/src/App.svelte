@@ -6,6 +6,7 @@
     router,
     type RouteDefinition,
   } from "svelte-spa-router";
+  import { wrap } from "svelte-spa-router/wrap";
 
   import { Button } from "$lib/components/ui/button";
   import * as ButtonGroup from "$lib/components/ui/button-group";
@@ -13,6 +14,11 @@
   import { RiArrowLeftLine, RiMenu2Line } from "remixicon-svelte";
 
   import Home from "@/pages/Home.svelte";
+  import Entry from "@/pages/entry/Entry.svelte";
+  import Board from "@/pages/rooms/Board.svelte";
+  import History from "@/pages/rooms/History.svelte";
+  import Ask from "@/pages/rooms/Ask.svelte";
+  import Members from "@/pages/rooms/Members.svelte";
 
   let isShowMenu: boolean = $state(false);
 
@@ -29,12 +35,32 @@
   const menuGroups: MenuGroup[] = [
     {
       title: "导航",
-      entries: [{ label: "首页", path: "/" }],
+      entries: [
+        { label: "首页", path: "/" },
+        { label: "进房", path: "/entry" },
+      ],
+    },
+    {
+      title: "房间",
+      entries: [
+        { label: "主协同", path: "/rooms/demo-room" },
+        { label: "正式记录", path: "/rooms/demo-room/history" },
+        { label: "提问", path: "/rooms/demo-room/ask" },
+        { label: "成员", path: "/rooms/demo-room/members" },
+      ],
     },
   ];
 
+  // Static paths are declared before the dynamic room path so they win the match.
+  // Route paths mirror the pages folder: entry/ for the entry page, rooms/ for
+  // the four in-room views (board, history, ask, members).
   const routes: RouteDefinition = {
     "/": Home,
+    "/entry": Entry,
+    "/rooms/:roomIdentifier": wrap({ component: Board }),
+    "/rooms/:roomIdentifier/history": wrap({ component: History }),
+    "/rooms/:roomIdentifier/ask": wrap({ component: Ask }),
+    "/rooms/:roomIdentifier/members": wrap({ component: Members }),
   };
 </script>
 
@@ -59,10 +85,7 @@
           </div>
           {#each menuGroup.entries as menuEntry (menuEntry.path)}
             <button
-              onclick={() => {
-                push(menuEntry.path);
-                isShowMenu = false;
-              }}
+              onclick={() => push(menuEntry.path)}
               class={["text-start", "text-2xl", "font-medium"]}
             >
               {menuEntry.label}
