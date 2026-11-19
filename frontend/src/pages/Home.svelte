@@ -97,10 +97,18 @@
       <Badge variant="secondary">{badgeLabel}</Badge>
     {/each}
   </div>
-  <div class={["flex", "w-full", "justify-center"]}>
+  <div class={["flex", "w-full", "justify-center", "gap-2"]}>
     <Button class={["w-[40%]"]} size="lg" onclick={() => push("/entry")}>
       立即进房
       <RiArrowRightLine />
+    </Button>
+    <Button
+      class={["w-[40%]"]}
+      size="lg"
+      variant="secondary"
+      onclick={() => push("/demo")}
+    >
+      演示编排
     </Button>
   </div>
 </div>
