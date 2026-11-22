@@ -8,13 +8,13 @@
 
   {#if outbox.entries.length === 0}
     <p class={["px-6", "py-8", "text-sm", "text-muted-foreground"]}>
-      暂无待补发操作
+      The queue is empty.
     </p>
   {:else}
     <div class={["flex", "flex-col", "gap-2", "px-6", "pb-8"]}>
       {#each outbox.entries as outboxEntry, entryIndex (entryIndex)}
         <p class={["text-sm"]}>
-          {outboxEntry.kind} · 基础版本 {outboxEntry.baseVersion} ·
+          {outboxEntry.kind} · base version {outboxEntry.baseVersion} ·
           {outboxEntry.content}
         </p>
       {/each}

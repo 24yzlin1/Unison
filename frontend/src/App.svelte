@@ -1,44 +1,20 @@
 <script lang="ts">
   import { ModeWatcher } from "mode-watcher";
-  import Router, {
-    pop,
-    push,
-    router,
-    type RouteDefinition,
-  } from "svelte-spa-router";
-  import { wrap } from "svelte-spa-router/wrap";
+  import { RiArrowLeftLine, RiMenu2Line } from "remixicon-svelte";
 
   import { Button } from "$lib/components/ui/button";
   import * as ButtonGroup from "$lib/components/ui/button-group";
   import * as Drawer from "$lib/components/ui/drawer";
-  import { RiArrowLeftLine, RiMenu2Line } from "remixicon-svelte";
 
   import StatusBadge from "@/common/components/StatusBadge.svelte";
-  import Home from "@/pages/Home.svelte";
-  import Entry from "@/pages/entry/Entry.svelte";
-  import Demo from "@/pages/demo/Demo.svelte";
-  import Fallback from "@/pages/fallback/Fallback.svelte";
-  import Settings from "@/pages/settings/Settings.svelte";
-  import ErrorPage from "@/pages/error/Error.svelte";
-  import Board from "@/pages/rooms/Board.svelte";
-  import History from "@/pages/rooms/History.svelte";
-  import Ask from "@/pages/rooms/Ask.svelte";
-  import Members from "@/pages/rooms/Members.svelte";
-  import Status from "@/pages/rooms/Status.svelte";
-  import Outbox from "@/pages/rooms/Outbox.svelte";
-  import Faults from "@/pages/rooms/Faults.svelte";
-
-  let isShowMenu: boolean = $state(false);
-
-  // The room identifier of the active route, empty outside /rooms/:id paths.
-  // It drives the persistent status badge in the header.
-  const activeRoomIdentifier: string = $derived.by(() => {
-    const pathSegments: string[] = router.location.split("/");
-    if (pathSegments[1] !== "rooms" || pathSegments.length < 3) {
-      return "";
-    }
-    return pathSegments[2] ?? "";
-  });
+  import RouteView from "@/common/router/RouteView.svelte";
+  import {
+    goBack,
+    navigate,
+    roomPath,
+    router,
+  } from "@/common/router/router.svelte";
+  import { identity } from "@/common/stores/identity.svelte";
 
   interface MenuEntry {
     label: string;
@@ -50,86 +26,67 @@
     entries: MenuEntry[];
   }
 
-  const menuGroups: MenuGroup[] = [
-    {
-      title: "导航",
-      entries: [
-        { label: "首页", path: "/" },
-        { label: "进房", path: "/entry" },
-      ],
-    },
-    {
-      title: "房间",
-      entries: [
-        { label: "主协同", path: "/rooms/demo-room" },
-        { label: "正式记录", path: "/rooms/demo-room/history" },
-        { label: "提问", path: "/rooms/demo-room/ask" },
-        { label: "成员", path: "/rooms/demo-room/members" },
-      ],
-    },
-    {
-      title: "工具",
-      entries: [
-        { label: "演示编排", path: "/demo" },
-        { label: "录屏兜底", path: "/fallback" },
-        { label: "演示设置", path: "/settings" },
-        { label: "错误示例", path: "/error" },
-      ],
-    },
-  ];
+  let isShowMenu: boolean = $state(false);
 
-  // Static paths are declared before the dynamic room path so they win the match.
-  // Route paths mirror the pages folder: entry/ for the entry page, rooms/ for
-  // the in-room views (board, history, ask, members, status, outbox, faults).
-  const routes: RouteDefinition = {
-    "/": Home,
-    "/entry": Entry,
-    "/demo": Demo,
-    "/fallback": Fallback,
-    "/settings": Settings,
-    "/error": ErrorPage,
-    "/rooms/:roomIdentifier": wrap({ component: Board }),
-    "/rooms/:roomIdentifier/status": wrap({ component: Status }),
-    "/rooms/:roomIdentifier/outbox": wrap({ component: Outbox }),
-    "/rooms/:roomIdentifier/faults": wrap({ component: Faults }),
-    "/rooms/:roomIdentifier/history": wrap({ component: History }),
-    "/rooms/:roomIdentifier/ask": wrap({ component: Ask }),
-    "/rooms/:roomIdentifier/members": wrap({ component: Members }),
-  };
+  // The room of the active route drives the persistent status badge. Outside
+  // a room route the badge is hidden.
+  const activeRoomIdentifier: string = $derived(
+    router.parameters["roomIdentifier"] ?? "",
+  );
+
+  // Menu entries point at the active room, then at the last joined room. When
+  // neither exists the room group is hidden instead of linking to a dead path.
+  const menuRoomIdentifier: string = $derived(
+    activeRoomIdentifier !== "" ? activeRoomIdentifier : identity.roomIdentifier,
+  );
+
+  const menuGroups: MenuGroup[] = $derived.by((): MenuGroup[] => {
+    const groups: MenuGroup[] = [
+      {
+        title: "Navigate",
+        entries: [
+          { label: "Home", path: "/" },
+          { label: "Create room", path: "/rooms/new" },
+          { label: "Join room", path: "/rooms/join" },
+        ],
+      },
+    ];
+
+    if (menuRoomIdentifier !== "") {
+      groups.push({
+        title: "Room",
+        entries: [
+          { label: "Board", path: roomPath(menuRoomIdentifier) },
+          { label: "History", path: roomPath(menuRoomIdentifier, "history") },
+          { label: "Ask", path: roomPath(menuRoomIdentifier, "ask") },
+          { label: "Members", path: roomPath(menuRoomIdentifier, "members") },
+          { label: "Status", path: roomPath(menuRoomIdentifier, "status") },
+          { label: "Outbox", path: roomPath(menuRoomIdentifier, "outbox") },
+          { label: "Faults", path: roomPath(menuRoomIdentifier, "faults") },
+        ],
+      });
+    }
+
+    groups.push({
+      title: "Tools",
+      entries: [
+        { label: "Demo script", path: "/demo" },
+        { label: "Playback", path: "/fallback" },
+        { label: "Settings", path: "/settings" },
+        { label: "Error page", path: "/error" },
+      ],
+    });
+
+    return groups;
+  });
+
+  function openMenuEntry(menuEntry: MenuEntry): void {
+    isShowMenu = false;
+    navigate(menuEntry.path);
+  }
 </script>
 
 <ModeWatcher />
-{@render header()}
-<main class={["max-w-211", "mx-auto"]}>
-  <Router {routes} />
-</main>
-
-<Drawer.Root bind:open={isShowMenu}>
-  <Drawer.Overlay
-    class={["bg-background/80"]}
-    onclick={() => (isShowMenu = !isShowMenu)}
-  >
-    <nav
-      class={["flex", "flex-col", "gap-12", "overflow-auto", "px-8", "py-32"]}
-    >
-      {#each menuGroups as menuGroup (menuGroup.title)}
-        <div class={["flex", "flex-col", "gap-3"]}>
-          <div class={["text-sm", "font-medium", "text-muted-foreground"]}>
-            {menuGroup.title}
-          </div>
-          {#each menuGroup.entries as menuEntry (menuEntry.path)}
-            <button
-              onclick={() => push(menuEntry.path)}
-              class={["text-start", "text-2xl", "font-medium"]}
-            >
-              {menuEntry.label}
-            </button>
-          {/each}
-        </div>
-      {/each}
-    </nav>
-  </Drawer.Overlay>
-</Drawer.Root>
 
 {#snippet header()}
   <header
@@ -148,14 +105,18 @@
   >
     <div>
       <ButtonGroup.Root>
-        {#if router.location !== "/"}
-          <Button variant="secondary" onclick={pop}>
+        {#if router.path !== "/"}
+          <Button variant="secondary" onclick={goBack} aria-label="Go back">
             <RiArrowLeftLine />
           </Button>
         {/if}
-        <Button variant="secondary" onclick={() => (isShowMenu = !isShowMenu)}>
+        <Button
+          variant="secondary"
+          onclick={() => (isShowMenu = !isShowMenu)}
+          aria-label="Open menu"
+        >
           <RiMenu2Line />
-          {#if router.location === "/"}
+          {#if router.path === "/"}
             Unison
           {/if}
         </Button>
@@ -166,3 +127,36 @@
     {/if}
   </header>
 {/snippet}
+
+{@render header()}
+
+<main class={["max-w-211", "mx-auto"]}>
+  <RouteView />
+</main>
+
+<Drawer.Root bind:open={isShowMenu}>
+  <Drawer.Overlay
+    class={["bg-background/80"]}
+    onclick={() => (isShowMenu = !isShowMenu)}
+  >
+    <nav
+      class={["flex", "flex-col", "gap-12", "overflow-auto", "px-8", "py-32"]}
+    >
+      {#each menuGroups as menuGroup (menuGroup.title)}
+        <div class={["flex", "flex-col", "gap-3"]}>
+          <div class={["text-sm", "font-medium", "text-muted-foreground"]}>
+            {menuGroup.title}
+          </div>
+          {#each menuGroup.entries as menuEntry (menuEntry.path)}
+            <button
+              onclick={() => openMenuEntry(menuEntry)}
+              class={["text-start", "text-2xl", "font-medium"]}
+            >
+              {menuEntry.label}
+            </button>
+          {/each}
+        </div>
+      {/each}
+    </nav>
+  </Drawer.Overlay>
+</Drawer.Root>

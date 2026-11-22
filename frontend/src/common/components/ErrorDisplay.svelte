@@ -1,14 +1,15 @@
 <script lang="ts">
-  import { pop } from "svelte-spa-router";
   import { RiPlanetLine } from "remixicon-svelte";
 
   import { Button } from "$lib/components/ui/button";
   import * as Empty from "$lib/components/ui/empty";
 
-  let {
-    title = "出错了",
+  import { goBack } from "@/common/router/router.svelte";
+
+  const {
+    title = "Something went wrong.",
     description,
-    backCallback = pop,
+    backCallback = goBack,
     reloadCallback,
   }: {
     title?: string;
@@ -30,10 +31,10 @@
   </Empty.Header>
   <Empty.Content class={["flex-row", "justify-center"]}>
     <Button onclick={backCallback} variant="secondary" class={["w-24"]}>
-      返回
+      Back
     </Button>
     {#if reloadCallback}
-      <Button onclick={reloadCallback} class={["w-24"]}>刷新</Button>
+      <Button onclick={reloadCallback} class={["w-24"]}>Reload</Button>
     {/if}
   </Empty.Content>
 </Empty.Root>

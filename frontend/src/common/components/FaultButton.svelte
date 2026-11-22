@@ -4,12 +4,9 @@
   // One fault injection action. Only a control command is sent; the system
   // never restarts. The request goes through the response envelope once the
   // fault endpoint is ready.
-  let { action, label }: { action: string; label: string } = $props();
-
-  let injectionActive: boolean = $state(false);
+  const { action, label }: { action: string; label: string } = $props();
 
   async function injectFault(): Promise<void> {
-    injectionActive = true;
     try {
       await fetch(`/api/faults/${action}`, { method: "POST" });
     } catch {

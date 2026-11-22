@@ -1,6 +1,5 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { push } from "svelte-spa-router";
 
   import { Button } from "$lib/components/ui/button";
 
@@ -8,22 +7,20 @@
     openFrameStream,
     type FrameStreamConnection,
   } from "@/common/api/frameStreamClient";
-  import {
-    draft,
-    appendDraftText,
-  } from "@/common/stores/draft.svelte";
+  import { navigate, roomPath, router } from "@/common/router/router.svelte";
+  import { appendDraftText, draft } from "@/common/stores/draft.svelte";
   import RoomSectionDescription from "@/pages/rooms/components/RoomSectionDescription.svelte";
 
-  let { params: routeParameters }: { params: Record<string, string> } = $props();
-
-  const roomIdentifier: string = $derived(routeParameters["roomIdentifier"] ?? "");
+  const roomIdentifier: string = $derived(
+    router.parameters["roomIdentifier"] ?? "",
+  );
 
   let frameConnection: FrameStreamConnection | null = $state(null);
 
   // Consume the frame stream into the pending draft. Rendering stays local to
   // this page; the draft layer never writes into the confirmed history.
   onMount(() => {
-    frameConnection = openFrameStream(roomIdentifier, (frameText) => {
+    frameConnection = openFrameStream(roomIdentifier, (frameText: string) => {
       appendDraftText(frameText);
     });
     return () => {
@@ -32,15 +29,15 @@
   });
 
   function openAskPage(): void {
-    push(`/rooms/${roomIdentifier}/ask`);
+    navigate(roomPath(roomIdentifier, "ask"));
   }
 
   function openHistoryPage(): void {
-    push(`/rooms/${roomIdentifier}/history`);
+    navigate(roomPath(roomIdentifier, "history"));
   }
 
   function openMembersPage(): void {
-    push(`/rooms/${roomIdentifier}/members`);
+    navigate(roomPath(roomIdentifier, "members"));
   }
 </script>
 
@@ -48,7 +45,7 @@
   <RoomSectionDescription category="board" />
 
   <p class={["px-6", "text-sm", "text-muted-foreground"]}>
-    房间 {roomIdentifier}
+    Room {roomIdentifier}
   </p>
 
   <div class={["min-h-24", "px-6", "text-sm"]}>
@@ -56,14 +53,14 @@
   </div>
 
   <div class={["flex", "flex-col", "gap-4", "px-6", "pb-8"]}>
-    <Button size="lg" onclick={openAskPage}>提问</Button>
+    <Button size="lg" onclick={openAskPage}>Ask</Button>
 
     <div class={["flex", "gap-2"]}>
       <Button variant="secondary" class={["flex-1"]} onclick={openHistoryPage}>
-        正式记录
+        Confirmed history
       </Button>
       <Button variant="secondary" class={["flex-1"]} onclick={openMembersPage}>
-        成员
+        Members
       </Button>
     </div>
   </div>

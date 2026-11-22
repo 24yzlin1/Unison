@@ -7,13 +7,13 @@
   <RoomSectionDescription category="faults" />
 
   <div class={["flex", "flex-col", "gap-4", "px-6", "pb-8"]}>
-    <p class={["text-sm", "text-muted-foreground"]}>当前无故障注入</p>
+    <p class={["text-sm", "text-muted-foreground"]}>No fault is active.</p>
 
     <div class={["flex", "flex-wrap", "gap-2"]}>
-      <FaultButton action="stop-instance" label="停止实例" />
-      <FaultButton action="endpoint-offline" label="端离线" />
-      <FaultButton action="raise-concurrency" label="提高并发" />
-      <FaultButton action="inject-latency" label="注入延迟" />
+      <FaultButton action="stop-instance" label="Stop instance" />
+      <FaultButton action="endpoint-offline" label="Endpoint offline" />
+      <FaultButton action="raise-concurrency" label="Raise concurrency" />
+      <FaultButton action="inject-latency" label="Inject latency" />
     </div>
   </div>
 </div>

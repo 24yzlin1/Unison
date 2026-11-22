@@ -13,17 +13,18 @@
 </script>
 
 <div class={["flex", "flex-col", "gap-4", "px-6", "py-8"]}>
-  <p class={["text-2xl", "font-semibold", "text-primary"]}>录屏兜底</p>
+  <p class={["text-2xl", "font-semibold", "text-primary"]}>Playback fallback</p>
 
   <p class={["text-sm", "text-muted-foreground"]}>
-    当前流模式：{streamMode === "live" ? "实时" : "模拟"}
+    Stream mode: {streamMode === "live" ? "live" : "mock"}
   </p>
 
   {#if streamMode === "live"}
-    <Button onclick={switchToMock}>切换模拟流</Button>
+    <Button onclick={switchToMock}>Switch to mock stream</Button>
   {:else}
     <p class={["text-sm", "text-muted-foreground"]}>
-      已切换为模拟流，所有演示动作照常可跑
+      The stream mode was changed to mock. Every demonstration action still
+      runs.
     </p>
   {/if}
 </div>

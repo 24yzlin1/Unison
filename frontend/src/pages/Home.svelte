@@ -1,11 +1,12 @@
 <script lang="ts">
-  import { push } from "svelte-spa-router";
+  import { RiArrowRightLine } from "remixicon-svelte";
 
   import * as Avatar from "$lib/components/ui/avatar";
   import { Badge } from "$lib/components/ui/badge";
   import { Button } from "$lib/components/ui/button";
   import * as Item from "$lib/components/ui/item";
-  import { RiArrowRightLine } from "remixicon-svelte";
+
+  import { navigate } from "@/common/router/router.svelte";
 
   interface FeatureEntry {
     abbreviation: string;
@@ -14,32 +15,32 @@
   }
 
   const badgeLabels: string[] = [
-    "逐字帧同步",
-    "多人共改",
-    "提问打断",
-    "离线队列",
+    "Live draft frames",
+    "Concurrent edits",
+    "Ask and interrupt",
+    "Offline queue",
   ];
 
   const featureList: FeatureEntry[] = [
     {
       abbreviation: "S",
-      name: "流式视图",
-      description: "逐字帧实时上屏，多端同屏同源。",
+      name: "Streaming view",
+      description: "Draft frames render word by word on every endpoint.",
     },
     {
       abbreviation: "H",
-      name: "正式记录",
-      description: "确认后的版本化记录，支持多人协同编辑。",
+      name: "Confirmed history",
+      description: "Versioned records are appended only after confirmation.",
     },
     {
       abbreviation: "C",
-      name: "提问打断",
-      description: "提问即时送达，打断后无缝衔接新话题。",
+      name: "Ask and interrupt",
+      description: "Questions arrive at once; interruption stops on one boundary.",
     },
     {
       abbreviation: "M",
-      name: "状态角标",
-      description: "连接与同步读数实时可见，异常一目了然。",
+      name: "Status badge",
+      description: "Connection and synchronization readings stay visible.",
     },
   ];
 </script>
@@ -67,10 +68,12 @@
       "text-left",
     ]}
   >
-    欢迎来到 Unison
+    Welcome to Unison
   </p>
   <p class={["text-foreground", "text-base", "text-balance", "text-left"]}>
-    为您打造的实时协作记录平台。无论您需要逐字流式记录、多人协同编辑，还是即时提问与打断，这里都能提供稳定支持。
+    A real-time collaboration record for multi-device demonstrations. Draft
+    frames stream word by word, confirmed records keep one server-assigned
+    order, and every endpoint converges on the same version.
   </p>
 </div>
 <div class={["clip", "content-['']", "block", "h-12", "bg-muted"]}></div>
@@ -86,11 +89,12 @@
       "text-left",
     ]}
   >
-    多端同屏，实时同步
+    Four screens, one version
   </p>
   <p class={["text-foreground", "text-base", "text-balance", "text-left"]}>
-    Unison
-    基于流式帧同步技术，为您的团队提供逐字上屏、版本一致的共享记录。无论是会议大屏还是随身设备，都能保持同屏同源。
+    Unison keeps every screen on the same server-versioned history. Draft text
+    stays in the temporary layer, and confirmed records are the only source of
+    truth.
   </p>
   <div class={["flex", "gap-2"]}>
     {#each badgeLabels as badgeLabel (badgeLabel)}
@@ -98,17 +102,21 @@
     {/each}
   </div>
   <div class={["flex", "w-full", "justify-center", "gap-2"]}>
-    <Button class={["w-[40%]"]} size="lg" onclick={() => push("/entry")}>
-      立即进房
+    <Button
+      class={["w-[40%]"]}
+      size="lg"
+      onclick={() => navigate("/rooms/join")}
+    >
+      Join a room
       <RiArrowRightLine />
     </Button>
     <Button
       class={["w-[40%]"]}
       size="lg"
       variant="secondary"
-      onclick={() => push("/demo")}
+      onclick={() => navigate("/demo")}
     >
-      演示编排
+      Demo script
     </Button>
   </div>
 </div>
@@ -125,10 +133,10 @@
         "text-left",
       ]}
     >
-      核心能力
+      Core capabilities
     </p>
     <p class={["text-foreground", "text-base", "text-balance", "text-left"]}>
-      从进房到归档，覆盖协作记录的完整链路。
+      The full path from joining a room to confirmed history is covered.
     </p>
   </div>
   <div class={["px-2"]}>

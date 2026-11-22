@@ -19,10 +19,10 @@
   <RoomSectionDescription category="status" />
 
   <div class={["flex", "flex-col", "gap-2", "px-6", "pb-8", "text-sm"]}>
-    <p>实例标识：{instanceLabel}</p>
-    <p>在线端数：{metadata.onlineEndpointCount}</p>
-    <p>往返延迟：{latencyLabel}</p>
-    <p>当前版本：{versionLabel}</p>
-    <p>同步落后：{metadata.syncLagVersions}</p>
+    <p>Instance: {instanceLabel}</p>
+    <p>Online endpoints: {metadata.onlineEndpointCount}</p>
+    <p>Round-trip latency: {latencyLabel}</p>
+    <p>Current version: {versionLabel}</p>
+    <p>Synchronization lag: {metadata.syncLagVersions}</p>
   </div>
 </div>

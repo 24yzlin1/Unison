@@ -1,7 +1,7 @@
 <script lang="ts">
   // Persistent offline notice. It never disables inputs: actions are queued
   // locally in the outbox instead.
-  let { offline }: { offline: boolean } = $props();
+  const { offline }: { offline: boolean } = $props();
 </script>
 
 {#if offline}
@@ -11,6 +11,6 @@
       "bg-destructive", "text-destructive-foreground"
     ]}
   >
-    连接已断开，操作已在本地排队
+    The connection was lost. Actions are queued locally.
   </div>
 {/if}

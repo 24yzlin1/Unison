@@ -16,7 +16,14 @@
     "allowJs": true,
     "checkJs": true,
     "moduleDetection": "force",
-    // "baseUrl": ".",
+    // Strict switches required by the frontend specification. All of them are
+    // committed configuration, never command line flags.
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "noImplicitOverride": true,
+    "noFallthroughCasesInSwitch": true,
+    "noPropertyAccessFromIndexSignature": true,
+    "noImplicitReturns": true,
     "paths": {
       "@": ["./src"],
       "@/*": ["./src/*"],

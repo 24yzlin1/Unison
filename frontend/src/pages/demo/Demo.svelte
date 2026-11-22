@@ -2,14 +2,14 @@
   import { Button } from "$lib/components/ui/button";
 
   const scriptSteps: string[] = [
-    "进房看角标",
-    "提问四屏逐字",
-    "中途插话",
-    "两端并发共改",
-    "跨端接力",
-    "飞行模式 5—10 秒",
-    "停一个实例",
-    "断 API 切模拟流再跑一遍",
+    "Inspect the status badge",
+    "Ask and stream on four screens",
+    "Interrupt mid-generation",
+    "Edit the same record from two endpoints",
+    "Continue the thread from another endpoint",
+    "Airplane mode for 5 to 10 seconds",
+    "Stop one instance",
+    "Cut the model API and replay with the mock stream",
   ];
 
   let currentStepIndex: number = $state(-1);
@@ -22,7 +22,7 @@
 </script>
 
 <div class={["flex", "flex-col", "gap-4", "px-6", "py-8"]}>
-  <p class={["text-2xl", "font-semibold", "text-primary"]}>演示编排</p>
+  <p class={["text-2xl", "font-semibold", "text-primary"]}>Demo script</p>
 
   <div class={["flex", "flex-col", "gap-2"]}>
     {#each scriptSteps as scriptStep, stepIndex (scriptStep)}
@@ -39,5 +39,5 @@
     {/each}
   </div>
 
-  <Button size="lg" onclick={runDemonstration}>开始演示</Button>
+  <Button size="lg" onclick={runDemonstration}>Start demonstration</Button>
 </div>

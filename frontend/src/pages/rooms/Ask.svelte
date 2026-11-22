@@ -1,23 +1,22 @@
 <script lang="ts">
-  import { push } from "svelte-spa-router";
-
   import { Button } from "$lib/components/ui/button";
 
-  import {
-    draft,
-    clearDraft,
-  } from "@/common/stores/draft.svelte";
+  import { navigate, router } from "@/common/router/router.svelte";
+  import { clearDraft, draft } from "@/common/stores/draft.svelte";
   import RoomSectionDescription from "@/pages/rooms/components/RoomSectionDescription.svelte";
 
-  let { params: routeParameters }: { params: Record<string, string> } = $props();
-
-  const roomIdentifier: string = $derived(routeParameters["roomIdentifier"] ?? "");
+  const roomIdentifier: string = $derived(
+    router.parameters["roomIdentifier"] ?? "",
+  );
 
   let questionContent: string = $state("");
 
   // Lock the local input while the generation is in progress. The ask request
   // goes through the response envelope once the contract stub endpoint is ready.
   function submitQuestion(): void {
+    if (questionContent.trim() === "" || draft.inputLocked) {
+      return;
+    }
     draft.inputLocked = true;
     draft.generationActive = true;
   }
@@ -26,7 +25,7 @@
   function interruptGeneration(): void {
     clearDraft();
     draft.inputLocked = false;
-    push(`/rooms/${roomIdentifier}`);
+    navigate(`/rooms/${roomIdentifier}`);
   }
 </script>
 
@@ -36,13 +35,13 @@
   <div class={["flex", "flex-col", "gap-4", "px-6", "pb-8"]}>
     <div class={["flex", "flex-col", "gap-2"]}>
       <label class={["text-sm", "font-medium"]} for="questionInput">
-        问题
+        Question
       </label>
       <textarea
         id="questionInput"
         rows={4}
         bind:value={questionContent}
-        placeholder="输入问题"
+        placeholder="Type a question."
         disabled={draft.inputLocked}
         class={[
           "min-h-24", "w-full", "rounded-lg", "border", "border-input",
@@ -52,10 +51,10 @@
       ></textarea>
     </div>
 
-    <Button size="lg" onclick={submitQuestion}>发送提问</Button>
+    <Button size="lg" onclick={submitQuestion}>Send question</Button>
 
     <Button variant="destructive" onclick={interruptGeneration}>
-      打断
+      Interrupt
     </Button>
   </div>
 </div>

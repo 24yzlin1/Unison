@@ -1,9 +1,8 @@
 <script lang="ts">
-  import { push } from "svelte-spa-router";
-
   import { Button } from "$lib/components/ui/button";
 
   import ErrorDisplay from "@/common/components/ErrorDisplay.svelte";
+  import { navigate } from "@/common/router/router.svelte";
 
   type DemoErrorKind = "notFound" | "identityExpired" | "recordsFailed";
 
@@ -31,9 +30,9 @@
   ];
 
   const demoErrorLabels: Record<DemoErrorKind, string> = {
-    notFound: "房间不存在",
-    identityExpired: "端标识失效",
-    recordsFailed: "记录加载失败",
+    notFound: "Not found",
+    identityExpired: "Identity expired",
+    recordsFailed: "Records failed",
   };
 
   let activeErrorKind: DemoErrorKind = $state("notFound");
@@ -43,11 +42,11 @@
   // The landing page is the single exit for every error scene. Scene 401 also
   // clears the endpoint identity and redirects to the entry page once wired.
   function backToLanding(): void {
-    push("/");
+    navigate("/");
   }
 
   function reloadPage(): void {
-    push("/error");
+    navigate("/error");
   }
 </script>
 
@@ -68,5 +67,6 @@
     title={activeScene.title}
     description={activeScene.description}
     backCallback={backToLanding}
+    reloadCallback={reloadPage}
   />
 </div>
