@@ -1,31 +1,41 @@
 <script lang="ts">
-  import { onMount } from "svelte";
-
   import { Button } from "$lib/components/ui/button";
 
   import {
-    openFrameStream,
-    type FrameStreamConnection,
-  } from "@/common/api/frameStreamClient";
+    canSwitchInstance,
+    reconnectNow,
+    roomConnection,
+    switchToNextInstance,
+  } from "@/common/connection/roomConnection.svelte";
   import { navigate, roomPath, router } from "@/common/router/router.svelte";
-  import { appendDraftText, draft } from "@/common/stores/draft.svelte";
+  import { draft } from "@/common/stores/draft.svelte";
   import RoomSectionDescription from "@/pages/rooms/components/RoomSectionDescription.svelte";
 
   const roomIdentifier: string = $derived(
     router.parameters["roomIdentifier"] ?? "",
   );
 
-  let frameConnection: FrameStreamConnection | null = $state(null);
-
-  // Consume the frame stream into the pending draft. Rendering stays local to
-  // this page; the draft layer never writes into the confirmed history.
-  onMount(() => {
-    frameConnection = openFrameStream(roomIdentifier, (frameText: string) => {
-      appendDraftText(frameText);
-    });
-    return () => {
-      frameConnection?.close();
-    };
+  const connectionLabel: string = $derived.by((): string => {
+    switch (roomConnection.phase) {
+      case "connected":
+        return roomConnection.instanceIdentifier === ""
+          ? "Connected to the service."
+          : `Connected to instance ${roomConnection.instanceIdentifier}.`;
+      case "loading":
+        return "Loading the room snapshot.";
+      case "reconnecting":
+        return "Reconnecting to the service.";
+      case "offline":
+        return "The connection was lost. Actions are queued locally.";
+      case "unauthorized":
+        return "The endpoint identity is missing or has expired.";
+      case "failed":
+        return roomConnection.lastError === ""
+          ? "The room could not be loaded."
+          : roomConnection.lastError;
+      default:
+        return "Connecting to the service.";
+    }
   });
 
   function openAskPage(): void {
@@ -44,9 +54,32 @@
 <div class={["flex", "flex-col", "gap-4"]}>
   <RoomSectionDescription category="board" />
 
-  <p class={["px-6", "text-sm", "text-muted-foreground"]}>
-    Room {roomIdentifier}
-  </p>
+  <div class={["flex", "flex-col", "gap-2", "px-6"]}>
+    <p class={["text-sm", "text-muted-foreground"]}>Room {roomIdentifier}</p>
+    <p
+      class={[
+        "text-sm",
+        roomConnection.phase === "connected"
+          ? "text-muted-foreground"
+          : "text-destructive",
+      ]}
+    >
+      {connectionLabel}
+    </p>
+
+    {#if roomConnection.phase !== "connected"}
+      <div class={["flex", "gap-2"]}>
+        <Button variant="secondary" size="sm" onclick={reconnectNow}>
+          Reconnect
+        </Button>
+        {#if canSwitchInstance()}
+          <Button variant="secondary" size="sm" onclick={switchToNextInstance}>
+            Switch instance
+          </Button>
+        {/if}
+      </div>
+    {/if}
+  </div>
 
   <div class={["min-h-24", "px-6", "text-sm"]}>
     {draft.pendingText}

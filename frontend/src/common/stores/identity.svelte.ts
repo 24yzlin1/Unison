@@ -55,9 +55,10 @@ export function persistIdentity(): void {
   writeStorageValue(ROOM_IDENTIFIER_STORAGE_KEY, identity.roomIdentifier);
 }
 
-// Temporary stand-in for the identifier the join endpoint will issue in W1.
-// The value is stable across reloads and instance switches, so the route guard
-// and the reconnect path behave exactly like the final contract.
+// Development-only fallback used by the "Continue in demo mode" action when
+// no service answers. The normal path always takes the identifier issued by
+// POST /api/rooms/join. The value stays stable across reloads, so the route
+// guard and the reconnect path behave like the final contract.
 export function ensureEndpointIdentifier(): string {
   if (identity.endpointIdentifier === "") {
     identity.endpointIdentifier = `ENDPOINT-${crypto.randomUUID().slice(0, 8).toUpperCase()}`;

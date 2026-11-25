@@ -7,6 +7,7 @@
   import * as Drawer from "$lib/components/ui/drawer";
 
   import StatusBadge from "@/common/components/StatusBadge.svelte";
+  import RoomConnectionHost from "@/common/connection/RoomConnectionHost.svelte";
   import RouteView from "@/common/router/RouteView.svelte";
   import {
     goBack,
@@ -37,7 +38,9 @@
   // Menu entries point at the active room, then at the last joined room. When
   // neither exists the room group is hidden instead of linking to a dead path.
   const menuRoomIdentifier: string = $derived(
-    activeRoomIdentifier !== "" ? activeRoomIdentifier : identity.roomIdentifier,
+    activeRoomIdentifier !== ""
+      ? activeRoomIdentifier
+      : identity.roomIdentifier,
   );
 
   const menuGroups: MenuGroup[] = $derived.by((): MenuGroup[] => {
@@ -87,6 +90,8 @@
 </script>
 
 <ModeWatcher />
+
+<RoomConnectionHost />
 
 {#snippet header()}
   <header
