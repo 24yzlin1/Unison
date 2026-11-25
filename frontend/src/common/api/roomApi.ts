@@ -1,11 +1,14 @@
 import {
+  isConfirmedFramePage,
   isHealthResult,
   isHeartbeatResult,
   isRoomCreationResult,
   isRoomJoinResult,
   isRoomSnapshot,
+  type ConfirmedFrame,
   type HealthResult,
   type HeartbeatResult,
+  type Page,
   type RoomCreationResult,
   type RoomJoinResult,
   type RoomSnapshot,
@@ -123,6 +126,36 @@ export function requestCreateRoom(
       displayName: request.displayName,
     },
     guardPayload: isRoomCreationResult,
+    ...optionalSignal(request.signal),
+  });
+}
+
+// GET /api/rooms/:roomIdentifier/frames?fromVersion=&toVersion=&page=&pageSize=
+// Only confirmed class frames are returned; delta frames are never replayed.
+export interface FramesRequest extends RoomScopedRequest {
+  fromVersion: number;
+  toVersion: number;
+  page: number;
+  pageSize: number;
+}
+
+export function requestRoomFrames(
+  request: FramesRequest,
+): Promise<ResponseEnvelope<Page<ConfirmedFrame>>> {
+  const searchParameters: URLSearchParams = new URLSearchParams({
+    fromVersion: String(request.fromVersion),
+    toVersion: String(request.toVersion),
+    page: String(request.page),
+    pageSize: String(request.pageSize),
+  });
+  return requestEnvelope({
+    url: buildApiUrl(
+      request.instanceBaseUrl,
+      `/api/rooms/${encodeURIComponent(request.roomIdentifier)}/frames?${searchParameters.toString()}`,
+    ),
+    method: "GET",
+    endpointIdentifier: request.endpointIdentifier,
+    guardPayload: isConfirmedFramePage,
     ...optionalSignal(request.signal),
   });
 }

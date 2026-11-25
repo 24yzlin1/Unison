@@ -162,6 +162,91 @@ The exposed state is `phase`, `roomIdentifier`, `instanceIdentifier`,
 shows the phase in English and offers `Reconnect` and `Switch instance` when the
 connection is not healthy.
 
+### Two state layers (M12)
+
+`common/stores/draft.svelte.ts` owns the temporary layer; `history.svelte.ts`
+owns the confirmed layer. The two never share a write path:
+
+- only a `confirm` frame or a snapshot may append to `history`;
+- only `delta`, `interrupt` and a few local actions may change `draft`;
+- a snapshot or a confirmed answer clears the draft, and a reconnect never
+  restores draft text.
+
+A draft carries `generationIdentifier`, `baseVersion`, `pendingText`,
+`lastSequenceNumber`, `generationActive`, `interrupted`, `boundary` and
+`inputLocked`.
+
+Ordering rules for delta frames:
+
+1. The first delta of a generation establishes the sequence baseline, so a
+   service that starts at 0 and one that starts at 1 both work.
+2. A sequence number less than or equal to the last applied one is a duplicate
+   or a stale frame and is dropped.
+3. A gap is buffered and flushed as soon as the missing number arrives; the
+   buffer is capped, so a broken generation cannot grow without bound.
+4. A generation that was interrupted or confirmed is recorded as closed. A late
+   delta for a closed generation is dropped and can never reopen the draft.
+
+Interrupt and boundary:
+
+- on `interrupt`, the active text moves to `interruptedText`, truncated to the
+  server `boundary`, and `pendingText` is cleared. Every endpoint slices the
+  same received text at the same server boundary, so the four screens stop at
+  the same character even when their streams arrived at different times;
+- if the boundary is larger than the text this endpoint already received, the
+  available text is kept: the client never invents characters;
+- the boundary unit is the JavaScript string index (UTF-16 code unit). The
+  contract must use the same unit; ASCII and BMP text such as Chinese behave
+  identically in both counting schemes.
+
+The board renders `Draft` and `Confirmed history` as two separate sections; the
+history page states that draft text never appears there. The ask page locks its
+input after sending and unlocks it on interrupt.
+
+### Version inbox (M13)
+
+`common/connection/versionInbox.svelte.ts` keeps the confirmed layer contiguous.
+Confirmed class frames can arrive out of order across instances, so the inbox
+never appends a version that is ahead of the local one:
+
+1. `lastAppliedVersion` starts at the snapshot version.
+2. A frame with a smaller or equal version is a duplicate or stale frame and is
+   dropped.
+3. A frame with the next version is applied, then every buffered frame that is
+   now contiguous is drained.
+4. A frame with a larger version waits in a buffer. The smallest buffered
+   version defines the missing range `[lastAppliedVersion + 1, smallest - 1]`.
+5. The connection manager calls
+   `GET /api/rooms/:roomIdentifier/frames?fromVersion=&toVersion=&page=&pageSize=`
+   for that range, pages until `receivedItems >= total`, and feeds every page
+   back into the inbox. A frame returned out of order inside a page is sorted by
+   version before it is applied.
+6. When the range is complete, the buffered frames drain and a newly exposed gap
+   is fetched in the same run. Ranges are capped, and a range that makes no
+   version progress fails instead of looping forever.
+7. A snapshot resets the inbox to the new baseline and drops every buffered
+   frame, so a reconnect can never replay old work.
+
+Rules that are easy to get wrong:
+
+- only `confirm` and `edit-receipt` advance the confirmed version; `interrupt`
+  is applied to the draft layer but is not a versioned fact;
+- the backfill endpoint returns confirmed class frames only. Delta frames are
+  never replayed, so a missing delta is not recoverable — it belongs to the
+  temporary layer and is re-generated or lost with its generation;
+- the inbox uses the server version as the only order; arrival time, page order
+  and the local clock never decide;
+- the page size comes from the response, not from the request, so a service
+  that caps pages still paginates correctly.
+
+The exposed state is `lastAppliedVersion`, `bufferedFrameCount`, `gapsDetected`,
+`backfillRequestCount`, `backfillActive`, `lastBackfillFromVersion`,
+`lastBackfillToVersion` and `lastError`. The board shows
+`Version gap detected. The missing frames were requested.` while a range is in
+flight, and the English failure message when a range cannot be loaded. A failed
+range leaves the buffered frames in place; reconnecting pulls a fresh snapshot
+and resets the inbox.
+
 ### Instances and the development proxy
 
 Copy `.env.example` to `.env.local` and adjust it:

@@ -8,6 +8,10 @@
 <div class={["flex", "flex-col"]}>
   <RoomSectionDescription category="history" />
 
+  <p class={["px-6", "pb-2", "text-xs", "text-muted-foreground"]}>
+    Confirmed records only. Draft text never appears here.
+  </p>
+
   {#if confirmedRecords.length === 0}
     <p class={["px-6", "py-8", "text-sm", "text-muted-foreground"]}>
       No records yet.

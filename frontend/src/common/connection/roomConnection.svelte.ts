@@ -5,6 +5,7 @@ import {
 import {
   requestHealth,
   requestHeartbeat,
+  requestRoomFrames,
   requestRoomSnapshot,
 } from "@/common/api/roomApi";
 import type { Frame, RoomSnapshot } from "@/common/api/roomContract";
@@ -16,14 +17,23 @@ import {
   readPreferredInstanceBaseUrl,
 } from "@/common/config/instances";
 import {
-  appendDraftText,
-  clearDraft,
-  draft,
-} from "@/common/stores/draft.svelte";
+  ingestBackfillPage,
+  ingestConfirmedFrame,
+  markBackfillFailed,
+  markBackfillFinished,
+  markBackfillStarted,
+  nextBackfillRange,
+  resetVersionInbox,
+  versionInbox,
+  type BackfillRange,
+} from "@/common/connection/versionInbox.svelte";
 import {
-  appendConfirmedRecord,
-  applyHistorySnapshot,
-} from "@/common/stores/history.svelte";
+  applyDraftDelta,
+  applyDraftInterrupt,
+  clearDraft,
+  completeDraftGeneration,
+} from "@/common/stores/draft.svelte";
+import { applyHistorySnapshot } from "@/common/stores/history.svelte";
 import { clearIdentity, identity } from "@/common/stores/identity.svelte";
 import { metadata } from "@/common/stores/metadata.svelte";
 
@@ -67,6 +77,9 @@ export const roomConnection = $state<RoomConnectionState>({
 
 const RECONNECT_BASE_DELAY_MILLISECONDS = 500;
 const RECONNECT_MAX_DELAY_MILLISECONDS = 8000;
+const BACKFILL_PAGE_SIZE = 100;
+const MAX_BACKFILL_PAGE_COUNT = 50;
+const MAX_BACKFILL_RANGE_COUNT = 20;
 
 let activeRoomIdentifier: string = "";
 let candidateBaseUrls: string[] = [];
@@ -117,8 +130,8 @@ function applySnapshot(snapshot: RoomSnapshot): void {
   // The snapshot contains only confirmed records, so the draft layer is empty
   // after every reconnect. Draft text is never restored.
   clearDraft();
-  draft.inputLocked = false;
   roomConnection.lastConfirmedVersion = snapshot.currentVersion;
+  resetVersionInbox(snapshot.currentVersion);
   metadata.currentVersion = snapshot.currentVersion;
   metadata.syncLagVersions = 0;
   metadata.onlineEndpointCount = snapshot.onlineMembers.length;
@@ -136,39 +149,31 @@ function applyIncomingFrame(frame: Frame): void {
       applySnapshot(frame.snapshot);
       return;
     case "delta":
-      draft.generationActive = true;
-      appendDraftText(frame.text);
+      // Ordering, duplicate drops and the interrupt gate live in the draft
+      // store, not in the connection layer.
+      applyDraftDelta(frame);
       return;
     case "confirm":
-    case "edit-receipt":
-      // A frame may repeat after a reconnect; the version is the only dedupe
-      // key and a local clock is never used.
-      if (frame.record.version <= roomConnection.lastConfirmedVersion) {
-        return;
-      }
-      appendConfirmedRecord({
-        version: frame.record.version,
-        content: frame.record.content,
-        authorDisplayName: frame.record.displayName,
-      });
-      roomConnection.lastConfirmedVersion = frame.record.version;
-      metadata.currentVersion = Math.max(
-        metadata.currentVersion,
-        frame.record.version,
-      );
-      metadata.syncLagVersions = Math.max(
-        metadata.currentVersion - roomConnection.lastConfirmedVersion,
-        0,
-      );
+    case "edit-receipt": {
       if (frame.frameKind === "confirm") {
-        // The confirmed answer leaves the temporary layer.
-        clearDraft();
-        draft.inputLocked = false;
+        // The confirmed answer leaves the temporary layer. An edit receipt
+        // never clears streaming text.
+        completeDraftGeneration(frame.record.generationIdentifier);
+      }
+      // Version buffering, duplicate drops and gap detection live in the
+      // version inbox. The frame is applied immediately only when it is the
+      // next contiguous version.
+      const backfillRange: BackfillRange | null = ingestConfirmedFrame(frame);
+      syncConfirmedVersionFromInbox();
+      if (backfillRange !== null && !versionInbox.backfillActive) {
+        void runBackfill(backfillRange, roomConnection.instanceBaseUrl);
       }
       return;
+    }
     case "interrupt":
-      clearDraft();
-      draft.inputLocked = false;
+      // Freeze the boundary preview; late deltas of this generation are
+      // dropped by the store.
+      applyDraftInterrupt(frame);
       return;
     case "status":
       metadata.instanceIdentifier = frame.status.instanceIdentifier;
@@ -186,6 +191,110 @@ function applyIncomingFrame(frame: Frame): void {
       // Round-trip measurement belongs to M17 and is not applied here.
       break;
   }
+}
+
+function syncConfirmedVersionFromInbox(): void {
+  roomConnection.lastConfirmedVersion = versionInbox.lastAppliedVersion;
+  metadata.syncLagVersions = Math.max(
+    metadata.currentVersion - versionInbox.lastAppliedVersion,
+    0,
+  );
+}
+
+// Fetch one missing version range, page by page, and feed every page into the
+// inbox. A later range is processed when a buffered frame still has a gap. A
+// cancellation (reconnect or room change) stops the loop without reporting a
+// failure, because the new snapshot resets the inbox anyway.
+async function runBackfill(
+  initialRange: BackfillRange,
+  instanceBaseUrl: string,
+): Promise<void> {
+  const backfillToken: number = connectionToken;
+  let range: BackfillRange | null = initialRange;
+  let rangeCount: number = 0;
+
+  while (
+    range !== null &&
+    backfillToken === connectionToken &&
+    rangeCount < MAX_BACKFILL_RANGE_COUNT
+  ) {
+    rangeCount += 1;
+    markBackfillStarted(range);
+    const startingVersion: number = versionInbox.lastAppliedVersion;
+    let page: number = 1;
+    let pageCount: number = 0;
+    let receivedItemCount: number = 0;
+    let hasMorePages: boolean = true;
+
+    while (
+      hasMorePages &&
+      backfillToken === connectionToken &&
+      pageCount < MAX_BACKFILL_PAGE_COUNT
+    ) {
+      pageCount += 1;
+      try {
+        const pageEnvelope = await requestRoomFrames({
+          instanceBaseUrl,
+          roomIdentifier: activeRoomIdentifier,
+          endpointIdentifier: identity.endpointIdentifier,
+          fromVersion: range.fromVersion,
+          toVersion: range.toVersion,
+          page,
+          pageSize: BACKFILL_PAGE_SIZE,
+        });
+        if (backfillToken !== connectionToken) {
+          return;
+        }
+        if (pageEnvelope.payload === null) {
+          markBackfillFailed(pageEnvelope.message);
+          return;
+        }
+        ingestBackfillPage(pageEnvelope.payload.items);
+        syncConfirmedVersionFromInbox();
+        receivedItemCount += pageEnvelope.payload.items.length;
+        hasMorePages =
+          pageEnvelope.payload.items.length > 0 &&
+          receivedItemCount < pageEnvelope.payload.total;
+        page += 1;
+      } catch (error: unknown) {
+        if (backfillToken !== connectionToken) {
+          return;
+        }
+        markBackfillFailed(
+          error instanceof NetworkRequestError
+            ? error.message
+            : "The missing frames could not be loaded.",
+        );
+        return;
+      }
+    }
+
+    if (hasMorePages) {
+      markBackfillFailed("The missing frames could not be loaded.");
+      return;
+    }
+
+    const nextRange: BackfillRange | null = nextBackfillRange();
+    if (
+      nextRange !== null &&
+      versionInbox.lastAppliedVersion === startingVersion
+    ) {
+      // The service answered but the gap did not move; do not request forever.
+      markBackfillFailed("The missing frames could not be loaded.");
+      return;
+    }
+    range = nextRange;
+  }
+
+  if (backfillToken !== connectionToken) {
+    return;
+  }
+  if (range !== null) {
+    markBackfillFailed("Too many version gaps were detected.");
+    return;
+  }
+  markBackfillFinished();
+  syncConfirmedVersionFromInbox();
 }
 
 function handleUnauthorized(message: string): void {
@@ -386,6 +495,7 @@ export function connect(roomIdentifier: string): void {
   }
 
   resetConnection();
+  resetVersionInbox(0);
   activeRoomIdentifier = roomIdentifier;
   candidateBaseUrls = [...getCandidateInstanceBaseUrls()];
   const preferredBaseUrl: string = readPreferredInstanceBaseUrl();
@@ -405,6 +515,7 @@ export function connect(roomIdentifier: string): void {
 
 export function disconnect(): void {
   resetConnection();
+  resetVersionInbox(0);
   activeRoomIdentifier = "";
   candidateBaseUrls = [];
   candidateIndex = 0;

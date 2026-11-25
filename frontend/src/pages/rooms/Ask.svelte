@@ -1,8 +1,13 @@
 <script lang="ts">
   import { Button } from "$lib/components/ui/button";
 
+  import { roomConnection } from "@/common/connection/roomConnection.svelte";
   import { navigate, router } from "@/common/router/router.svelte";
-  import { clearDraft, draft } from "@/common/stores/draft.svelte";
+  import {
+    beginDraftGeneration,
+    clearDraft,
+    draft,
+  } from "@/common/stores/draft.svelte";
   import RoomSectionDescription from "@/pages/rooms/components/RoomSectionDescription.svelte";
 
   const roomIdentifier: string = $derived(
@@ -11,20 +16,24 @@
 
   let questionContent: string = $state("");
 
-  // Lock the local input while the generation is in progress. The ask request
-  // goes through the response envelope once the contract stub endpoint is ready.
+  // Start a local generation and lock the input. The POST /questions call and
+  // its idempotency key are wired with M6; the store already carries the same
+  // generation identifier and base version the request will send.
   function submitQuestion(): void {
     if (questionContent.trim() === "" || draft.inputLocked) {
       return;
     }
-    draft.inputLocked = true;
-    draft.generationActive = true;
+    const generationIdentifier: string = `GENERATION-${crypto.randomUUID().slice(0, 8).toUpperCase()}`;
+    beginDraftGeneration(
+      generationIdentifier,
+      roomConnection.lastConfirmedVersion,
+    );
   }
 
-  // An interrupt clears the pending draft immediately and returns to the board.
+  // Local interrupt fallback: the service owns the shared boundary (M8). This
+  // clears the temporary layer immediately so the input is usable again.
   function interruptGeneration(): void {
     clearDraft();
-    draft.inputLocked = false;
     navigate(`/rooms/${roomIdentifier}`);
   }
 </script>
@@ -44,14 +53,30 @@
         placeholder="Type a question."
         disabled={draft.inputLocked}
         class={[
-          "min-h-24", "w-full", "rounded-lg", "border", "border-input",
-          "bg-background", "px-3", "py-2", "text-sm", "outline-none",
-          "focus-visible:ring-2", "focus-visible:ring-ring"
-        ]}
-      ></textarea>
+          "min-h-24",
+          "w-full",
+          "rounded-lg",
+          "border",
+          "border-input",
+          "bg-background",
+          "px-3",
+          "py-2",
+          "text-sm",
+          "outline-none",
+          "focus-visible:ring-2",
+          "focus-visible:ring-ring",
+        ]}></textarea>
+      {#if draft.inputLocked}
+        <p class={["text-xs", "text-muted-foreground"]}>
+          The input is locked while the answer streams. Interrupt to start a new
+          question.
+        </p>
+      {/if}
     </div>
 
-    <Button size="lg" onclick={submitQuestion}>Send question</Button>
+    <Button size="lg" onclick={submitQuestion} disabled={draft.inputLocked}>
+      Send question
+    </Button>
 
     <Button variant="destructive" onclick={interruptGeneration}>
       Interrupt

@@ -151,6 +151,29 @@ export type Frame =
   | StatusFrame
   | EchoFrame;
 
+// One page of a list endpoint. Every list payload uses this shape.
+export interface Page<TItem> {
+  items: TItem[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+// A frame returned by GET /api/rooms/:roomIdentifier/frames. Only confirmed
+// class frames are stored in version_log; delta frames are never replayed.
+export type ConfirmedFrameKind = "confirm" | "interrupt" | "edit-receipt";
+
+export interface ConfirmedFrame {
+  version: number;
+  frameKind: ConfirmedFrameKind;
+  record: ConfirmedRecord | null;
+  boundary: number | null;
+  issuedAt: string;
+}
+
+// A frame that advances the confirmed version. Interrupts do not advance it.
+export type VersionedFrame = ConfirmFrame | EditReceiptFrame;
+
 type UnknownRecord = Record<string, unknown>;
 
 function isUnknownRecord(value: unknown): value is UnknownRecord {
@@ -317,6 +340,56 @@ export function isRoomCreationResult(
     isNumber(value["currentVersion"]) &&
     isRoomSnapshot(value["snapshot"])
   );
+}
+
+// Guard a paged list payload together with its item type.
+export function isPageOf<TItem>(
+  value: unknown,
+  guardItem: (candidate: unknown) => candidate is TItem,
+): value is Page<TItem> {
+  if (!isUnknownRecord(value)) {
+    return false;
+  }
+  const items: unknown = value["items"];
+  return (
+    Array.isArray(items) &&
+    items.every(guardItem) &&
+    isNumber(value["total"]) &&
+    isNumber(value["page"]) &&
+    isNumber(value["pageSize"])
+  );
+}
+
+export function isConfirmedFrame(value: unknown): value is ConfirmedFrame {
+  if (!isUnknownRecord(value)) {
+    return false;
+  }
+  const frameKind: unknown = value["frameKind"];
+  const record: unknown = value["record"];
+  const boundary: unknown = value["boundary"];
+  if (
+    !isNumber(value["version"]) ||
+    !isString(value["issuedAt"]) ||
+    !(
+      frameKind === "confirm" ||
+      frameKind === "interrupt" ||
+      frameKind === "edit-receipt"
+    ) ||
+    !(record === null || isConfirmedRecord(record)) ||
+    !(boundary === null || isNumber(boundary))
+  ) {
+    return false;
+  }
+  if (frameKind === "interrupt") {
+    return true;
+  }
+  return isConfirmedRecord(record);
+}
+
+export function isConfirmedFramePage(
+  value: unknown,
+): value is Page<ConfirmedFrame> {
+  return isPageOf(value, isConfirmedFrame);
 }
 
 // Guard a frame by its frameKind discriminant. A malformed frame is dropped
